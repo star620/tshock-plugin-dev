@@ -1,0 +1,38 @@
+# CI 质量门禁：MCP 工具单测/语法检查 + SKILL 文档结构校验
+# 触发：push 到 main 或任意 PR
+name: CI 质量门禁
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  mcp-tools-test:
+    name: MCP 工具测试与语法检查
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp-server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: 安装依赖
+        run: pip install -r requirements.txt
+      - name: 运行单元测试
+        run: python -m unittest discover -s tests -v
+      - name: Python 语法编译检查
+        run: python -m py_compile server.py tools/*.py tests/*.py
+
+  skill-doc-check:
+    name: SKILL 文档结构校验
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: 校验 SKILL.md 引用文件存在
+        run: python .github/check_skill_files.py
