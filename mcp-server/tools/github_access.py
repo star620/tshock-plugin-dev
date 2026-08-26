@@ -25,18 +25,20 @@ def _get(url: str, params: dict = None) -> dict:
     return resp.json()
 
 
-def _probe_version(repo: str) -> dict:
-    """探测仓库适配的 TShock / Terraria 版本（读 README + csproj 线索）。
+def _probe_version(repo: str, subdir: str = "") -> dict:
+    """探测仓库/插件适配的 TShock / Terraria 版本（读 README + csproj 线索）。
 
+    subdir 非空时探测插件子目录（如 UnrealMultiple/TShockPlugin 里的单个插件）。
     返回 version_hint（如 "TShock 6.1.0 / net9.0"）与 evidence（依据来源）。
     """
+    prefix = f"{subdir}/" if subdir else ""
     hint_parts, evidence = [], []
     candidates = [
-        "README.md", "README_cn.md", "README_CN.md", "readme.md",
-        "src/Plugin.csproj", "Plugin.csproj", "src/TShock.Plugin.csproj",
-        "TShock.Plugin.csproj", "src/*.csproj",
+        f"{prefix}README.md", f"{prefix}README_cn.md", f"{prefix}README_CN.md", f"{prefix}readme.md",
+        f"{prefix}src/Plugin.csproj", f"{prefix}Plugin.csproj", f"{prefix}src/TShock.Plugin.csproj",
+        f"{prefix}TShock.Plugin.csproj", f"{prefix}src/*.csproj",
     ]
-    for cand in candidates[:5]:  # 最多探测 5 个路径，避免 API 消耗过大
+    for cand in candidates[:6]:  # 最多探测 6 个路径，避免 API 消耗过大
         url = f"{RAW}/{repo}/HEAD/{cand}"
         if "*" in cand:
             continue
