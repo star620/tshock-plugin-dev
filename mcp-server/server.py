@@ -91,6 +91,24 @@ def search_repos(query: str, target_tshock: str = "", target_terraria: str = "")
 
 
 @server.tool()
+def search_plugin_library(query: str, repo: str = "UnrealMultiple/TShockPlugin",
+                          target_tshock: str = "", target_terraria: str = "") -> str:
+    """在 TShock 插件库仓库内检索相似插件（Phase 0 步骤 0.2）。
+
+    参数：
+        query: 关键词（如 "签到 礼包"，中英文均可）
+        repo: 插件库仓库（默认 UnrealMultiple/TShockPlugin）
+        target_tshock: 目标 TShock 版本（可选，版本匹配校验）
+        target_terraria: 目标 Terraria 版本（可选）
+
+    返回 JSON：repo/stars/plugins[{name/description/version_hint/version_match}]。
+    """
+    import json
+
+    return json.dumps(github_access.search_plugin_library(query, repo, target_tshock, target_terraria), ensure_ascii=False)
+
+
+@server.tool()
 def read_remote_file(repo: str, path: str, ref: str = "HEAD") -> str:
     """读取 GitHub 仓库中某个文件的内容（不下载整包，省流量）（Phase 2）。
 
