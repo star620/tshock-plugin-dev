@@ -182,8 +182,8 @@ def search_code(query: str) -> dict:
         return {"error": f"代码搜索失败：{e}"}
 
 
-# 插件库检索的扫描上限：匿名限速 60 次/小时，读树 2 次 + README 若干次须留余量
-MAX_README_SCAN = 30
+# 插件库检索的扫描上限：有 token 全扫（5000/h 限速充裕）；无 token 受匿名限速(60/h)约束取 50
+MAX_README_SCAN = 500 if TOKEN else 50
 MAX_RESULTS = 6
 
 
@@ -208,9 +208,13 @@ def search_plugin_library(query: str, repo: str = "UnrealMultiple/TShockPlugin",
         stars = info.get("stargazers_count", 0)
 
         tree = _get(f"{API}/repos/{repo}/git/trees/{default_branch}", {"recursive": "1"})
-        # 顶层插件子目录：type=tree 且路径不含 '/'
-        dirs = [i["path"] for i in tree.get("tree", [])
-                if i.get("type") == "tree" and "/" not in i["path"]]
+        items = tree.get("tree", [])
+        # 插件目录：优先 src/<插件> 布局（UnrealMultiple/TShockPlugin 惯例），无 src 时回退顶层目录
+        dirs = [i["path"] for i in items
+                if i.get("type") == "tree" and i["path"].count("/") == 1 and i["path"].startswith("src/")]
+        if not dirs:
+            dirs = [i["path"] for i in items
+                    if i.get("type") == "tree" and "/" not in i["path"]]
         if len(dirs) > MAX_README_SCAN:
             dirs = dirs[:MAX_README_SCAN]
 
@@ -228,10 +232,10 @@ def search_plugin_library(query: str, repo: str = "UnrealMultiple/TShockPlugin",
             readme_hit = any(t in text.lower()[:800] for t in tokens)
             if not (dirname_hit or readme_hit):
                 continue
-            desc = _readme_summary(text) or d
+            desc = _readme_summary(text) or d.split("/")[-1]
             probe = _probe_version(repo, subdir=d)
             plugins.append({
-                "name": d,
+                "name": d.split("/")[-1],  # src/ 布局下去掉 src/ 前缀，仅显示插件名
                 "description": desc[:120],
                 "version_hint": probe["version_hint"],
                 "version_match": _match_version(probe["version_hint"], target_tshock, target_terraria),

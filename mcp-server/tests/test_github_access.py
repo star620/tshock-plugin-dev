@@ -81,6 +81,36 @@ class SearchPluginLibraryTest(unittest.TestCase):
         names = [p["name"] for p in result.get("plugins", [])]
         self.assertIn("SpamKiller", names)   # 目录名含关键词"spam"
 
+    @mock.patch("tools.github_access.requests.get")
+    @mock.patch("tools.github_access._get")
+    def test_src_layout_detection(self, mock_get, mock_raw):
+        """UnrealMultiple/TShockPlugin 使用 src/<插件> 布局，应识别 src/ 下的插件目录。"""
+        mock_get.side_effect = [
+            {"default_branch": "master", "stargazers_count": 100},
+            {"tree": [
+                {"type": "tree", "path": "src/SignInSign"},
+                {"type": "tree", "path": "src/WorldEdit"},
+                {"type": "tree", "path": ".github"},
+                {"type": "blob", "path": "src/SignInSign/README.md"},
+                {"type": "blob", "path": "src/WorldEdit/README.md"},
+            ]},
+        ]
+
+        def fake_raw(url, timeout=8, **kw):
+            resp = mock.Mock()
+            resp.status_code = 200
+            if "src/SignInSign/README.md" in url:
+                resp.text = "# SignInSign\n签到签到签到，玩家每日签到"
+            else:
+                resp.status_code = 404
+            return resp
+        mock_raw.side_effect = fake_raw
+
+        result = github_access.search_plugin_library("签到", "UnrealMultiple/TShockPlugin")
+        names = [p["name"] for p in result.get("plugins", [])]
+        self.assertIn("SignInSign", names)   # src/ 布局下应只显示插件名，且命中 README
+        self.assertNotIn("WorldEdit", names)
+
     @mock.patch("tools.github_access._get")
     def test_no_keyword_returns_empty(self, mock_get):
         mock_get.side_effect = [
