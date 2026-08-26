@@ -41,6 +41,16 @@ class LoadLogCheckTest(unittest.TestCase):
         r = _check_with_text(log)
         self.assertEqual(r["status"], "loaded")
 
+    def test_tshock61_initiated_success(self):
+        """TShock 6.1 真实日志：Plugin ... initiated. 应判 loaded。"""
+        log = (
+            "2026-08-26 16:00:00 - TShock: INFO: TShock 6.1.0.0 正在运行。\n"
+            "2026-08-26 16:00:01 - Plugin: INFO: Plugin MyPlugin v1.0.0 (by Author) initiated.\n"
+        )
+        r = _check_with_text(log, "MyPlugin")
+        self.assertEqual(r["status"], "loaded")
+        self.assertIn("loaded", r["matched"])
+
     def test_rest_port_conflict(self):
         """REST 端口冲突：未进入运行，startup_fail 非空。"""
         log = (

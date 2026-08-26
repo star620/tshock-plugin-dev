@@ -6,10 +6,11 @@ import re
 import sys
 from pathlib import Path
 
-# 加载结果特征表（按优先级匹配，中英双语：TShock 中文版日志用"插件已加载"，英文版用 loaded）
+# 加载结果特征表（按优先级匹配，中英双语：TShock 中文版日志用"插件已加载"，英文版用 initiated）
 SUCCESS_PATTERNS = [
     re.compile(r"插件已加载", re.IGNORECASE),
     re.compile(r"已加载", re.IGNORECASE),
+    re.compile(r"Plugin\s+(?P<name>\w+)\s+v[\d.]+.*initiated", re.IGNORECASE),
     re.compile(r"Plugin\s+[\"']?(?P<name>\w+)[\"']?\s+loaded", re.IGNORECASE),
     re.compile(r"(?P<name>\w+)\s+loaded\s+successfully", re.IGNORECASE),
 ]
