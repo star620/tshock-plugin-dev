@@ -8,6 +8,7 @@ import json
 import os
 import re
 import sys
+import time
 import zipfile
 
 import requests
@@ -19,6 +20,27 @@ CACHE_ROOT = os.path.join(
 )
 TIMEOUT = 60
 API = "https://api.github.com"
+
+
+def _err(message: str, hint: str = "", fallback: str = "") -> dict:
+    """统一错误格式：error 表示出错，hint 为排查建议，fallback 为降级路径。"""
+    return {"error": message, "hint": hint, "fallback": fallback}
+
+
+def _get_json(url: str, retries: int = 2) -> dict:
+    """GET 并返回 JSON；瞬时失败自动重试 retries 次，仍失败抛异常。"""
+    last = None
+    for i in range(retries + 1):
+        try:
+            resp = requests.get(url, timeout=TIMEOUT)
+            resp.raise_for_status()
+            return resp.json()
+        except requests.RequestException as e:
+            last = e
+            if i == retries:
+                raise
+            time.sleep(1)
+    raise last  # 理论上不可达，仅为类型提示
 
 
 def _extract_zip(zip_path: str, dest_dir: str) -> str:
@@ -116,15 +138,15 @@ def list_submodules(source_dir: str = "") -> dict:
     返回 JSON：submodules[{path/url/description}]。
     """
     if not source_dir:
-        return {"error": "缺少参数 source_dir（用 fetch_source 拿到 TShock 源码目录）"}
+        return _err("缺少参数 source_dir", "用法：list_submodules(source_dir)，目录来自 fetch_source 结果", "")
     gitmodules = os.path.join(source_dir, ".gitmodules")
     if not os.path.isfile(gitmodules):
-        return {"error": f"{gitmodules} 不存在。提示：codeload zip 通常不含子模块，需按 URL 单独下载。"}
+        return _err(f"{gitmodules} 不存在", "codeload zip 通常不含子模块，需按 .gitmodules 里的 URL 单独下载", "")
     try:
         with open(gitmodules, "r", encoding="utf-8", errors="replace") as f:
             text = f.read()
     except OSError as e:
-        return {"error": f"读取失败：{e}"}
+        return _err(f"读取失败：{e}", "确认文件存在且可读", "")
 
     subs = []
     for m in re.finditer(r"\[submodule \"([^\"]+)\"\]", text):

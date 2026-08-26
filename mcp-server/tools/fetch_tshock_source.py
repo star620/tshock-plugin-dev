@@ -18,6 +18,11 @@ CACHE_ROOT = os.path.join(
 TIMEOUT = 60
 
 
+def _err(message: str, hint: str = "", fallback: str = "") -> dict:
+    """统一错误格式：error 表示出错，hint 为排查建议，fallback 为降级路径。"""
+    return {"error": message, "hint": hint, "fallback": fallback}
+
+
 def _codeload_url(version: str) -> str:
     """TShock 源码 zip 的 codeload 地址（tag 形如 6.1.0）。"""
     return f"https://codeload.github.com/Pryaxis/TShock/zip/refs/tags/{version}"
@@ -34,7 +39,7 @@ def fetch(version: str = "", api_symbol: str = "") -> dict:
         JSON 字符串，含 version/source_dir/downloaded/matched_symbols/error。
     """
     if not version:
-        return {"error": "缺少参数 version。先用 version_resolver 解析出目标 TShock 版本。"}
+        return _err("缺少参数 version", "先用 resolve_version 工具解析出目标 TShock 版本", "")
 
     dest_dir = os.path.join(CACHE_ROOT, f"tshock-{version}")
     zip_path = os.path.join(CACHE_ROOT, f"tshock-{version}.zip")
@@ -62,9 +67,9 @@ def fetch(version: str = "", api_symbol: str = "") -> dict:
             inner = [d for d in os.listdir(CACHE_ROOT) if d.startswith(f"tshock-{version}") and os.path.isdir(os.path.join(CACHE_ROOT, d))]
             source_dir = os.path.join(CACHE_ROOT, inner[0]) if inner else dest_dir
         except requests.RequestException as e:
-            return {"error": f"下载失败：{e}。请检查网络，或改用 references/03 的手动流程。"}
+            return _err(f"下载失败：{e}", "检查网络后重试", "按 references/03-参考源码获取.md 手动下载")
         except zipfile.BadZipFile:
-            return {"error": f"下载文件损坏（{zip_path}）。请删除缓存后重试。"}
+            return _err(f"下载文件损坏（{zip_path}）", "删除缓存目录后重新下载", "")
 
     # 可选：grep API 符号定义
     matched = []
