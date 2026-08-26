@@ -116,7 +116,8 @@ class SearchPluginLibraryTest(unittest.TestCase):
                 {"type": "blob", "path": "SpamKiller/README.md"},
             ]},
         ]
-        mock_raw.side_effect = [mock.Mock(status_code=404)]
+        # 所有 requests.get 均返回 404（README 无、版本探测无），避免 side_effect 耗尽抛 StopIteration
+        mock_raw.return_value = mock.Mock(status_code=404)
 
         result = github_access.search_plugin_library("spam", "UnrealMultiple/TShockPlugin")
         names = [p["name"] for p in result.get("plugins", [])]
