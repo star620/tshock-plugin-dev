@@ -66,7 +66,7 @@ tshock-plugin-dev/
 ## 技术要求
 
 - Terraria 1.4.5+（含 1.4.5.6）
-- TShock 6.0.0+
+- TShock 6.0.0+（当前稳定版 6.1.0，对应 Terraria 1.4.5.6）
 - .NET SDK（编译环境，自动检测/安装）
 
 ## 许可证
