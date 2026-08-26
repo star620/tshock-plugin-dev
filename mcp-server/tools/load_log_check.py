@@ -117,8 +117,12 @@ def check(log_path: str, plugin_name: str = "") -> dict:
                 matched.append(label)
                 suggestions.append(tip)
 
-    # 2. 崩溃标志
-    crash_markers = [m for m in CRASH_MARKERS if m.search(text)]
+    # 2. 崩溃标志（返回匹配到的实际文本，正则对象无法 JSON 序列化）
+    crash_markers = []
+    for m in CRASH_MARKERS:
+        match = m.search(text)
+        if match:
+            crash_markers.append(match.group(0))
 
     # 3. 状态判定
     if crash_markers:
