@@ -182,6 +182,82 @@ def search_code(query: str) -> dict:
         return {"error": f"代码搜索失败：{e}"}
 
 
+# 插件库检索的扫描上限：匿名限速 60 次/小时，读树 2 次 + README 若干次须留余量
+MAX_README_SCAN = 30
+MAX_RESULTS = 6
+
+
+def search_plugin_library(query: str, repo: str = "UnrealMultiple/TShockPlugin",
+                          target_tshock: str = "", target_terraria: str = "") -> dict:
+    """在插件库仓库内检索相似插件（Phase 0 步骤 0.2）。
+
+    参数：
+        query: 关键词（如 "签到 礼包"，中英文均可）
+        repo: 插件库仓库（默认 UnrealMultiple/TShockPlugin）
+        target_tshock: 目标 TShock 版本（如 6.1.0），版本匹配校验
+        target_terraria: 目标 Terraria 版本（如 1.4.5.6）
+
+    返回 JSON：repo/stars/plugins[{name/description/version_hint/version_match}]。
+    version_match: match（可参考）/ mismatch（需升级改造）/ unknown（自行核对）。
+    """
+    if not query:
+        return {"error": "缺少参数 query"}
+    try:
+        info = _get(f"{API}/repos/{repo}")
+        default_branch = info.get("default_branch", "HEAD")
+        stars = info.get("stargazers_count", 0)
+
+        tree = _get(f"{API}/repos/{repo}/git/trees/{default_branch}", {"recursive": "1"})
+        # 顶层插件子目录：type=tree 且路径不含 '/'
+        dirs = [i["path"] for i in tree.get("tree", [])
+                if i.get("type") == "tree" and "/" not in i["path"]]
+        if len(dirs) > MAX_README_SCAN:
+            dirs = dirs[:MAX_README_SCAN]
+
+        tokens = [t for t in re.split(r"[\s,，、/_\-]+", query.lower()) if t]
+
+        plugins = []
+        for d in dirs:
+            readme_url = f"{RAW}/{repo}/HEAD/{d}/README.md"
+            try:
+                resp = requests.get(readme_url, timeout=8)
+                text = resp.text if resp.status_code == 200 else ""
+            except requests.RequestException:
+                text = ""
+            dirname_hit = any(t in d.lower() for t in tokens)
+            readme_hit = any(t in text.lower()[:800] for t in tokens)
+            if not (dirname_hit or readme_hit):
+                continue
+            desc = _readme_summary(text) or d
+            probe = _probe_version(repo, subdir=d)
+            plugins.append({
+                "name": d,
+                "description": desc[:120],
+                "version_hint": probe["version_hint"],
+                "version_match": _match_version(probe["version_hint"], target_tshock, target_terraria),
+            })
+            if len(plugins) >= MAX_RESULTS:
+                break
+        return {
+            "repo": repo, "stars": stars,
+            "plugins": plugins,
+            "hint": ("匹配基于插件目录名与 README 摘要；version_match=match 可参考，"
+                     "mismatch 借鉴需升级改造，unknown 需自行核对。未找到时可用 search_repos 搜全 GitHub 兜底。"),
+        }
+    except requests.RequestException as e:
+        return {"error": f"GitHub API 请求失败：{e}。可设置 GITHUB_TOKEN 提升速率限制。"}
+
+
+def _readme_summary(text: str) -> str:
+    """提取 README 第一段有效文字作摘要（去标题/空行/图片行）。"""
+    for line in text.splitlines():
+        line = line.strip(" #*\t")
+        if not line or line.startswith("!"):
+            continue
+        return line
+    return ""
+
+
 if __name__ == "__main__":
     # 调试：python github_access.py search <关键词> [TShock版本] [Terraria版本]
     mode = sys.argv[1] if len(sys.argv) > 1 else "search"
@@ -195,3 +271,8 @@ if __name__ == "__main__":
         print(json.dumps(read_remote_file(q, r), ensure_ascii=False, indent=2))
     elif mode == "code":
         print(json.dumps(search_code(q), ensure_ascii=False, indent=2))
+    elif mode == "library":
+        r = sys.argv[3] if len(sys.argv) > 3 else "UnrealMultiple/TShockPlugin"
+        t2 = sys.argv[4] if len(sys.argv) > 4 else ""
+        t3 = sys.argv[5] if len(sys.argv) > 5 else ""
+        print(json.dumps(search_plugin_library(q, r, t2, t3), ensure_ascii=False, indent=2))
