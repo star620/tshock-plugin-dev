@@ -6,10 +6,26 @@ import re
 import sys
 from pathlib import Path
 
-# 加载结果特征表（按优先级匹配）
+# 加载结果特征表（按优先级匹配，中英双语：TShock 中文版日志用"插件已加载"，英文版用 loaded）
 SUCCESS_PATTERNS = [
+    re.compile(r"插件已加载", re.IGNORECASE),
+    re.compile(r"已加载", re.IGNORECASE),
     re.compile(r"Plugin\s+[\"']?(?P<name>\w+)[\"']?\s+loaded", re.IGNORECASE),
     re.compile(r"(?P<name>\w+)\s+loaded\s+successfully", re.IGNORECASE),
+]
+
+# 进入运行状态标志（TShock 中文版 banner；英文版为 is running）
+RUNNING_MARKERS = [
+    re.compile(r"TShock\s+[\d.]+\s*正在运行", re.IGNORECASE),
+    re.compile(r"欢迎使用泰拉瑞亚TShock服务器", re.IGNORECASE),
+    re.compile(r"is running", re.IGNORECASE),
+]
+
+# 启动阶段失败标志（REST 端口冲突等，出现在进入运行之前）
+STARTUP_FAIL_MARKERS = [
+    re.compile(r"Rest: ERROR: 启动时发生致命错误", re.IGNORECASE),
+    re.compile(r"SocketException", re.IGNORECASE),
+    re.compile(r"Fatal error", re.IGNORECASE),
 ]
 
 FAIL_PATTERNS = [
@@ -138,14 +154,43 @@ def check(log_path: str, plugin_name: str = "") -> dict:
     lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
     log_tail = lines[-15:]
 
+    # 5. 启动诊断（TShock 是否进入运行、已加载插件、ERROR 行汇总）
+    running = any(m.search(text) for m in RUNNING_MARKERS)
+    startup_fail = [m.pattern.split(":")[-1].strip() for m in STARTUP_FAIL_MARKERS if m.search(text)]
+    loaded_plugins = []
+    for line in text.splitlines():
+        if ("已加载" in line or re.search(r"Loaded", line, re.IGNORECASE)) and "ERROR" not in line:
+            m = re.search(r"\[([^\]]+)\]", line)
+            if m:
+                name = m.group(1).strip()
+                if name and name not in loaded_plugins:
+                    loaded_plugins.append(name)
+    error_lines = []
+    for line in text.splitlines():
+        if "ERROR:" in line:
+            line = line.strip()
+            if line and line not in error_lines:
+                error_lines.append(line)
+        if len(error_lines) >= 5:
+            break
+    startup = {
+        "tshock_running": running,
+        "startup_fail": startup_fail,
+        "loaded_plugins": loaded_plugins[:20],
+        "error_lines": error_lines,
+    }
+
     return {
         "status": status,
         "matched": matched,
         "suggestions": suggestions,
         "crash_markers": crash_markers,
         "plugin_name": plugin_name,
+        "startup": startup,
         "log_tail": log_tail,
-        "hint": "status=loaded 为通过；failed/crashed 按 suggestions 回退对应阶段。",
+        "hint": ("status=loaded 为插件加载通过；failed/crashed 按 suggestions 回退对应阶段。"
+                 "startup.tshock_running 表示 TShock 是否进入运行（false 且 startup_fail 非空时定位到启动阶段失败）；"
+                 "startup.loaded_plugins 为已加载插件，startup.error_lines 为日志中的 ERROR 行。"),
     }
 
 
