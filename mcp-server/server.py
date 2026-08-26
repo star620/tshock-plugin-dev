@@ -1,4 +1,4 @@
-# MCP server 入口：注册 12 个工具，供 AI 在 skill 各阶段调用。
+# MCP server 入口：注册 13 个工具，供 AI 在 skill 各阶段调用。
 # 运行：python server.py（默认 stdio 传输，供 TRAE/其他 MCP 客户端本地注册）
 # 依赖 mcp>=2.0：mcp 2.x 中 FastMCP 已改名为 MCPServer。
 from mcp.server.mcpserver import MCPServer
