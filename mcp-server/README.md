@@ -1,0 +1,58 @@
+# TShock 插件开发 Skill 配套 MCP Server
+
+为 [tshock-plugin-dev](../SKILL.md) skill 提供高频操作的自动化工具。AI 在对应阶段直接调用工具，减少手动命令与猜错；**未安装时 skill 流程照常工作（优雅降级）**。
+
+## 工具清单
+
+| 工具 | 对应阶段 | 作用 |
+|---|---|---|
+| `resolve_version` | Phase 1 | 解析 Terraria ↔ TShock ↔ TFM ↔ NuGet 四元组 + 门禁判断 |
+| `check_build` | Phase 6 | 编译插件 + 解析错误码（CS0012/CS0234/NU1101…）给出修复建议 |
+| `check_load_log` | Phase 7 | 读取服务器日志，按特征表判断插件加载成败 |
+| `fetch_source` | Phase 2 L4 | 下载指定版本 TShock 源码 + 可选定位 API 符号定义 |
+
+## 安装
+
+```bash
+pip install -r requirements.txt
+```
+
+## 在 TRAE 中注册（本地 stdio）
+
+1. 打开 TRAE 的 MCP 设置 → 添加本地 MCP server
+2. 配置（JSON 形式）：
+
+```json
+{
+  "mcpServers": {
+    "tshock-plugin-dev": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["C:\\Users\\星梦\\Desktop\\插件开发\\[文档]插件开发\\TShock插件开发Skill-分发版\\tshock-plugin-dev\\mcp-server\\server.py"]
+    }
+  }
+}
+```
+
+> `command` 换成你本机 `python` 的实际路径（`where python` 查看）；`args` 指向本仓库 `mcp-server/server.py` 的绝对路径。
+
+3. 保存后确认 server 状态为「已连接」，工具列表出现 4 个工具即成功。
+
+## 命令行自测（不经过 MCP）
+
+每个工具都可独立运行：
+
+```bash
+python tools/version_resolver.py 1.4.5.6   # 解析指定 Terraria 版本
+python tools/version_resolver.py           # 解析最新稳定版
+python tools/build_check.py "路径\MyPlugin.csproj" --test
+python tools/load_log_check.py "路径\server_out.log" MyPlugin
+python tools/fetch_tshock_source.py 6.1.0 PacketTypes
+```
+
+## 设计说明
+
+- 所有工具返回 **JSON 字符串**，便于 AI 解析
+- 工具层兜底：网络失败/文件缺失返回 `{"error": ...}`，不崩溃
+- `fetch_source` 属联网下载，AI 调用前须按 skill 硬性规则征得用户同意
+- 错误码速查表 / 加载特征表 / TFM 映射分别与 `references/10-排错手册.md`、`references/09-编译部署加载验证.md`、`references/02-版本解析与兼容性.md` 保持一致

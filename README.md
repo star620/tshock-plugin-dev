@@ -39,6 +39,8 @@
 ```
 tshock-plugin-dev/
 ├── SKILL.md              # 技能主入口（工作流 + 硬性规则）
+├── README.md             # 本项目说明
+├── LICENSE               # MIT License
 ├── references/           # 阶段参考文档（00-11）
 │   ├── 00-需求采集.md        # 必答问卷与需求引导
 │   ├── 01-环境检测与自动准备.md
@@ -52,15 +54,19 @@ tshock-plugin-dev/
 │   ├── 09-编译部署加载验证.md
 │   ├── 10-排错手册.md
 │   └── 11-终审代码审查.md    # 交付前终审清单
-└── templates/            # 插件工程模板
-    ├── plugin.csproj.tpl
-    ├── Plugin.cs.tpl
-    ├── Configuration.cs.tpl
-    ├── CacheData.cs.tpl
-    ├── Utils.cs.tpl
-    ├── Commands.cs.tpl
-    ├── README.md.tpl
-    └── 需求问卷.md
+├── templates/            # 插件工程模板
+│   ├── plugin.csproj.tpl
+│   ├── Plugin.cs.tpl
+│   ├── Configuration.cs.tpl
+│   ├── CacheData.cs.tpl
+│   ├── Utils.cs.tpl
+│   ├── Commands.cs.tpl
+│   ├── README.md.tpl
+│   └── 需求问卷.md
+└── mcp-server/           # 配套 MCP 工具（可选，未安装时 skill 照常工作）
+    ├── server.py             # MCP 入口（stdio）
+    ├── README.md             # 安装与 TRAE 注册方式
+    └── tools/                # version_resolver / build_check / load_log_check / fetch_tshock_source
 ```
 
 ## 技术要求
