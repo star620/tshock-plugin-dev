@@ -61,17 +61,17 @@ def fetch_terrariaapi(version: str = "") -> dict:
 
     返回 JSON：source_dir/downloaded/hint。
     """
-    # TShock 的 .gitmodules 通常指向 NyxStudios/TerrariaAPI-Server
-    repo = "NyxStudios/TerrariaAPI-Server"
+    # TShock 的 .gitmodules 指向的 TerrariaServerAPI 已更名/重定向为 Pryaxis/TSAPI（默认分支 general-devel）
+    repo = "Pryaxis/TSAPI"
     if version:
         url = f"https://codeload.github.com/{repo}/zip/refs/tags/{version}"
     else:
-        url = f"https://codeload.github.com/{repo}/zip/refs/heads/master"
-    dest_dir = os.path.join(CACHE_ROOT, f"terrariaapi-{version or 'master'}")
+        url = f"https://codeload.github.com/{repo}/zip/refs/heads/general-devel"
+    dest_dir = os.path.join(CACHE_ROOT, f"terrariaapi-{version or 'general-devel'}")
     if os.path.isdir(dest_dir):
-        return {"version": version or "master", "source_dir": dest_dir, "downloaded": False}
+        return {"version": version or "general-devel", "source_dir": dest_dir, "downloaded": False}
 
-    zip_path = os.path.join(CACHE_ROOT, f"terrariaapi-{version or 'master'}.zip")
+    zip_path = os.path.join(CACHE_ROOT, f"terrariaapi-{version or 'general-devel'}.zip")
     try:
         resp = requests.get(url, timeout=TIMEOUT, stream=True)
         resp.raise_for_status()
@@ -80,7 +80,7 @@ def fetch_terrariaapi(version: str = "") -> dict:
                 f.write(chunk)
         source_dir = _extract_zip(zip_path, dest_dir)
         os.remove(zip_path)
-        return {"version": version or "master", "source_dir": source_dir, "downloaded": True,
+        return {"version": version or "general-devel", "source_dir": source_dir, "downloaded": True,
                 "hint": "该仓库定义 TerrariaApi.Server 类型（如 PacketTypes），可在此 grep 签名。"}
     except requests.RequestException as e:
         return {"error": f"下载失败：{e}。若 tag 不存在，可留空 version 用默认分支。"}
