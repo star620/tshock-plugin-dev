@@ -3,6 +3,7 @@
 # 数据来源：NuGet 官方 API + GitHub Releases API（与 references/02-版本解析与兼容性.md 一致）。
 import json
 import re
+import time
 from datetime import datetime
 
 import requests
@@ -19,11 +20,25 @@ TFM_BY_MAJOR = {6: "net9.0"}
 TIMEOUT = 15
 
 
-def _get_json(url: str) -> dict:
-    """GET 请求并返回 JSON；失败抛异常，由上层转成错误信息。"""
-    resp = requests.get(url, timeout=TIMEOUT)
-    resp.raise_for_status()
-    return resp.json()
+def _err(message: str, hint: str = "", fallback: str = "") -> dict:
+    """统一错误格式：error 表示出错，hint 为排查建议，fallback 为降级路径。"""
+    return {"error": message, "hint": hint, "fallback": fallback}
+
+
+def _get_json(url: str, retries: int = 2) -> dict:
+    """GET 请求并返回 JSON；瞬时失败自动重试 retries 次，仍失败抛异常。"""
+    last = None
+    for i in range(retries + 1):
+        try:
+            resp = requests.get(url, timeout=TIMEOUT)
+            resp.raise_for_status()
+            return resp.json()
+        except requests.RequestException as e:
+            last = e
+            if i == retries:
+                raise
+            time.sleep(1)
+    raise last  # 理论上不可达，仅为类型提示
 
 
 def _stable_versions(all_versions: list) -> list:
@@ -50,7 +65,7 @@ def resolve(terraria_version: str = "") -> dict:
         # 1. 取 NuGet 稳定版本列表
         nuget_versions = _stable_versions(_get_json(NUGET_INDEX_URL).get("versions", []))
         if not nuget_versions:
-            return {"error": "NuGet 返回空版本列表"}
+            return _err("NuGet 返回空版本列表", "稍后重试或检查 NuGet 服务状态", "")
 
         # 2. 取 GitHub 发布列表，建立「Terraria 版本 ↔ TShock 版本」映射
         releases = _get_json(GITHUB_RELEASES_URL)
@@ -117,9 +132,13 @@ def resolve(terraria_version: str = "") -> dict:
             "sources": {"nuget": NUGET_INDEX_URL, "github": GITHUB_RELEASES_URL},
         }
     except requests.RequestException as e:
-        return {"error": f"网络请求失败：{e}。请检查网络后重试，或降级为手动流程（references/02）。"}
+        return _err(
+            f"网络请求失败：{e}",
+            "检查网络连接后重试（已自动重试 2 次）",
+            "降级为手动流程：按 references/02-版本解析与兼容性.md 查询 NuGet 与 GitHub Releases",
+        )
     except Exception as e:  # noqa: BLE001 —— 工具层兜底，避免崩溃
-        return {"error": f"解析失败：{e}"}
+        return _err(f"解析失败：{e}", "检查输入参数后重试", "")
 
 
 if __name__ == "__main__":

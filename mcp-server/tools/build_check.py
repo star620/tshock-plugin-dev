@@ -5,6 +5,7 @@ import json
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 # 编译错误码速查表（与 10-排错手册.md 编译类错误一致）
 ERROR_TIPS = {
@@ -18,6 +19,20 @@ ERROR_TIPS = {
     "NU1701": "包兼容性警告：TShock 包 TFM 与项目 TFM 不一致。把项目 TFM 改为包 lib/ 目录一致的 TFM。",
     "NU1603": "包版本降级警告：引用版本与依赖链要求不一致。固定 PackageReference 版本。",
 }
+
+
+def _err(message: str, hint: str = "", fallback: str = "") -> dict:
+    """统一错误格式：error 表示出错，hint 为排查建议，fallback 为降级路径。"""
+    return {"error": message, "hint": hint, "fallback": fallback}
+
+
+def _resolve_csproj(csproj_path: str) -> str:
+    """若传入目录则取其下唯一 .csproj；传入文件且存在则原样返回；否则返回空串。"""
+    p = Path(csproj_path)
+    if p.is_dir():
+        csprojs = sorted(p.glob("*.csproj"))
+        return str(csprojs[0]) if csprojs else ""
+    return csproj_path if p.is_file() else ""
 
 
 def _parse_build_output(text: str) -> dict:
@@ -54,23 +69,37 @@ def check(csproj_path: str, run_tests: bool = False) -> dict:
         JSON 字符串，含 success/exit_code/errors/warnings/output_tail。
     """
     if not csproj_path:
-        return {"error": "缺少参数 csproj_path"}
+        return _err("缺少参数 csproj_path", "用法：check_build(csproj_path, run_tests)", "")
+    resolved = _resolve_csproj(csproj_path)
+    if not resolved:
+        return _err(
+            f"找不到项目文件：{csproj_path}",
+            "确认路径指向 .csproj 文件，或指向含 .csproj 的目录",
+            "",
+        )
+    csproj_path = resolved
 
-    # 1. 编译
-    build = subprocess.run(
-        ["dotnet", "build", "-c", "Release", csproj_path],
-        capture_output=True, text=True, encoding="utf-8", errors="replace",
-    )
+    # 1. 编译（项目路径放 dotnet 参数首位更清晰，-c 为配置选项）
+    try:
+        build = subprocess.run(
+            ["dotnet", "build", csproj_path, "-c", "Release"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+        )
+    except FileNotFoundError:
+        return _err("找不到 dotnet 命令", "确认已安装 .NET SDK 并已加入 PATH", "按 references/01-环境检测与自动准备.md 安装 SDK")
     output = build.stdout + build.stderr
     parsed = _parse_build_output(output)
 
     # 2. 可选跑测试
     test_result = None
     if run_tests:
-        test = subprocess.run(
-            ["dotnet", "test", csproj_path],
-            capture_output=True, text=True, encoding="utf-8", errors="replace",
-        )
+        try:
+            test = subprocess.run(
+                ["dotnet", "test", csproj_path],
+                capture_output=True, text=True, encoding="utf-8", errors="replace",
+            )
+        except FileNotFoundError:
+            return _err("找不到 dotnet 命令", "确认已安装 .NET SDK 并已加入 PATH", "按 references/01-环境检测与自动准备.md 安装 SDK")
         test_result = {
             "exit_code": test.returncode,
             "passed": "Passed!" in test.stdout,

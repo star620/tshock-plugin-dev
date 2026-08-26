@@ -46,6 +46,8 @@ description: TShock 插件全流程开发：需求采集、版本动态解析、
 
 按 `references/03-参考源码获取.md` 四层策略：
 
+**MCP 降级**：MCP 可用时优先 `search_plugin_library`（插件库检索）/ `search_repos`（全站检索）/ `read_remote_file`（读单文件）/ `fetch_source` / `fetch_terrariaapi` / `fetch_release_asset`（下载源码与发布包）；不可用时按 `03-参考源码获取.md` 手动检索与下载。
+
 - **L1 本地版本化源码夹**（用户提供：TShock源码 + OTAPI + Terraria反编译）→ 存在则读取，作为 API 行为的最权威依据
 - **L2 本地插件收集仓库** → 按需求搜索相似插件源码作参考；**Phase 0 分流为「借鉴」时，下载的插件源码在此作为改造底座**
 - **L3 NuGet 包**（官方 `TShock` 包，编译引用基础，必需）
@@ -82,6 +84,8 @@ description: TShock 插件全流程开发：需求采集、版本动态解析、
 ### Phase 7 部署与加载验证
 
 按 `references/09-编译部署加载验证.md`：
+
+**MCP 降级**：MCP 可用时优先调用 `check_load_log` 工具判断插件加载成败；不可用时手动读 ServerLog/server_out.log 按特征表判断（见 `09-编译部署加载验证.md`）。
 
 - 复制 DLL 到服务器 `ServerPlugins/`
 - 重启服务器（先 taskkill，再启动），检查 ServerLog/console：插件加载无报错、服务器不崩溃

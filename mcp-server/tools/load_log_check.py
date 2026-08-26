@@ -4,6 +4,7 @@
 import json
 import re
 import sys
+from pathlib import Path
 
 # 加载结果特征表（按优先级匹配）
 SUCCESS_PATTERNS = [
@@ -35,6 +36,33 @@ CRASH_MARKERS = [
 ]
 
 
+def _err(message: str, hint: str = "", fallback: str = "") -> dict:
+    """统一错误格式：error 表示出错，hint 为排查建议，fallback 为降级路径。"""
+    return {"error": message, "hint": hint, "fallback": fallback}
+
+
+# 服务器日志常见文件名（目录探测用）
+LOG_CANDIDATES = ["server_out.log", "ServerLog.txt"]
+
+
+def find_log_file(log_path: str) -> str:
+    """log_path 为目录时探测常见日志位置；为文件则原样返回；找不到返回空串。"""
+    p = Path(log_path)
+    if p.is_file():
+        return str(p)
+    if p.is_dir():
+        for cand in LOG_CANDIDATES:
+            f = p / cand
+            if f.is_file():
+                return str(f)
+        logs_dir = p / "logs"
+        if logs_dir.is_dir():
+            logs = sorted(logs_dir.glob("*.log"), key=lambda x: x.stat().st_mtime, reverse=True)
+            if logs:
+                return str(logs[0])
+    return ""
+
+
 def _read_log(path: str) -> str:
     """读取日志，兼容 utf-8 与 gbk 编码。"""
     for enc in ("utf-8", "gbk", "latin-1"):
@@ -58,14 +86,22 @@ def check(log_path: str, plugin_name: str = "") -> dict:
         JSON 字符串，含 status/matched/suggestions/crash_markers/log_tail。
     """
     if not log_path:
-        return {"error": "缺少参数 log_path"}
+        return _err("缺少参数 log_path", "用法：check_load_log(log_path, plugin_name)", "")
+    resolved = find_log_file(log_path)
+    if not resolved:
+        return _err(
+            f"找不到日志文件：{log_path}",
+            "确认服务器已启动并重定向输出；或传入 server_out.log / ServerLog.txt 的具体路径",
+            "按 references/09-编译部署加载验证.md 检查服务器日志位置",
+        )
+    log_path = resolved
 
     try:
         text = _read_log(log_path)
     except FileNotFoundError:
-        return {"error": f"日志文件不存在：{log_path}。请确认已启动服务器并重定向输出。"}
+        return _err(f"日志文件不存在：{log_path}", "文件可能被服务器占用/删除，重启服务器后重试", "")
     except Exception as e:  # noqa: BLE001 —— 工具层兜底
-        return {"error": f"读取日志失败：{e}"}
+        return _err(f"读取日志失败：{e}", "确认日志路径正确且可读", "")
 
     name_pat = re.compile(re.escape(plugin_name), re.IGNORECASE) if plugin_name else None
 

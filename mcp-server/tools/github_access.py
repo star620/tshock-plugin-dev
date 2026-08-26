@@ -8,6 +8,7 @@ import json
 import os
 import re
 import sys
+import time
 
 import requests
 
@@ -19,10 +20,25 @@ API = "https://api.github.com"
 RAW = "https://raw.githubusercontent.com"
 
 
-def _get(url: str, params: dict = None) -> dict:
-    resp = requests.get(url, headers=HEADERS, params=params, timeout=TIMEOUT)
-    resp.raise_for_status()
-    return resp.json()
+def _err(message: str, hint: str = "", fallback: str = "") -> dict:
+    """统一错误格式：error 表示出错，hint 为排查建议，fallback 为降级路径。"""
+    return {"error": message, "hint": hint, "fallback": fallback}
+
+
+def _get(url: str, params: dict = None, retries: int = 2) -> dict:
+    """GET 请求并返回 JSON；瞬时失败自动重试 retries 次，仍失败抛异常。"""
+    last = None
+    for i in range(retries + 1):
+        try:
+            resp = requests.get(url, headers=HEADERS, params=params, timeout=TIMEOUT)
+            resp.raise_for_status()
+            return resp.json()
+        except requests.RequestException as e:
+            last = e
+            if i == retries:
+                raise
+            time.sleep(1)
+    raise last  # 理论上不可达，仅为类型提示
 
 
 def _probe_version(repo: str, subdir: str = "") -> dict:
@@ -107,7 +123,7 @@ def search_repos(query: str, target_tshock: str = "", target_terraria: str = "")
     version_match: match（版本匹配）/ mismatch（版本不符，勿参考）/ unknown（无法判断）。
     """
     if not query:
-        return {"error": "缺少参数 query"}
+        return _err("缺少参数 query", "用法：search_repos(query, target_tshock, target_terraria)", "")
     try:
         data = _get(f"{API}/search/repositories", {"q": query, "sort": "stars", "per_page": 6})
         repos = []
@@ -127,7 +143,7 @@ def search_repos(query: str, target_tshock: str = "", target_terraria: str = "")
             "hint": "优先参考 version_match=match 的仓库；mismatch 的仓库 API 已变，仅可看思路；unknown 需自行核对版本。",
         }
     except requests.RequestException as e:
-        return {"error": f"GitHub API 请求失败：{e}。可设置 GITHUB_TOKEN 环境变量提升速率限制。"}
+        return _err(f"GitHub API 请求失败：{e}", "检查网络后重试（已自动重试 2 次）；可设置 GITHUB_TOKEN 提升速率限制", "")
 
 
 def read_remote_file(repo: str, path: str, ref: str = "HEAD") -> dict:
@@ -141,12 +157,16 @@ def read_remote_file(repo: str, path: str, ref: str = "HEAD") -> dict:
     返回 JSON：repo/path/ref/content（前 4000 字符）/truncated。
     """
     if not repo or not path:
-        return {"error": "缺少参数 repo 或 path"}
+        return _err("缺少参数 repo 或 path", "用法：read_remote_file(repo, path, ref)", "")
     try:
         url = f"{RAW}/{repo}/{ref}/{path}"
         resp = requests.get(url, timeout=TIMEOUT)
         if resp.status_code == 404:
-            return {"error": f"文件不存在：{repo}@{ref} 的 {path}（可能路径或 ref 错误）"}
+            return _err(
+                f"文件不存在：{repo}@{ref} 的 {path}",
+                "核对仓库名、分支/ref、文件路径是否拼写正确",
+                "可改用 search_repos 或 search_code 定位正确文件",
+            )
         resp.raise_for_status()
         content = resp.text
         return {
@@ -154,7 +174,7 @@ def read_remote_file(repo: str, path: str, ref: str = "HEAD") -> dict:
             "content": content[:4000], "truncated": len(content) > 4000,
         }
     except requests.RequestException as e:
-        return {"error": f"读取失败：{e}"}
+        return _err(f"读取失败：{e}", "检查网络后重试", "")
 
 
 def search_code(query: str) -> dict:
@@ -168,9 +188,14 @@ def search_code(query: str) -> dict:
     返回 JSON：results[{repository/path/url}]。
     """
     if not TOKEN:
-        return {"error": "代码搜索需要认证：请设置 GITHUB_TOKEN 环境变量后重启 MCP server。"}
+        return _err(
+            "缺少 GITHUB_TOKEN 环境变量",
+            "访问 https://github.com/settings/tokens 生成 Personal Access Token（无需特殊权限），"
+            "设置 GITHUB_TOKEN 后重启 MCP server",
+            "可改用 search_repos / read_remote_file / search_plugin_library（无需 token）",
+        )
     if not query:
-        return {"error": "缺少参数 query"}
+        return _err("缺少参数 query", "用法：search_code(query)", "")
     try:
         data = _get(f"{API}/search/code", {"q": query, "per_page": 8})
         results = [
@@ -179,7 +204,7 @@ def search_code(query: str) -> dict:
         ]
         return {"results": results, "hint": "结果里的文件可用 read_remote_file 读取内容。"}
     except requests.RequestException as e:
-        return {"error": f"代码搜索失败：{e}"}
+        return _err(f"代码搜索失败：{e}", "检查网络与 token 有效性后重试", "")
 
 
 # 插件库检索的扫描上限：有 token 全扫（5000/h 限速充裕）；无 token 受匿名限速(60/h)约束取 50
@@ -202,7 +227,7 @@ def search_plugin_library(query: str, repo: str = "UnrealMultiple/TShockPlugin",
     version_match: match（可参考）/ mismatch（需升级改造）/ unknown（自行核对）。
     """
     if not query:
-        return {"error": "缺少参数 query"}
+        return _err("缺少参数 query", "用法：search_plugin_library(query, repo, target_tshock, target_terraria)", "")
     try:
         info = _get(f"{API}/repos/{repo}")
         default_branch = info.get("default_branch", "HEAD")
@@ -253,7 +278,7 @@ def search_plugin_library(query: str, repo: str = "UnrealMultiple/TShockPlugin",
                      "mismatch 借鉴需升级改造，unknown 需自行核对。未找到时可用 search_repos 搜全 GitHub 兜底。"),
         }
     except requests.RequestException as e:
-        return {"error": f"GitHub API 请求失败：{e}。可设置 GITHUB_TOKEN 提升速率限制。"}
+        return _err(f"GitHub API 请求失败：{e}", "检查网络后重试（已自动重试 2 次）；可设置 GITHUB_TOKEN 提升速率限制", "")
 
 
 def _readme_summary(text: str) -> str:
