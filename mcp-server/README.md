@@ -93,5 +93,5 @@ python tools/project_util.py server                                   # 探测�
 - `fetch_source` / `fetch_terrariaapi` / `fetch_release_asset` 属联网下载，AI 调用前须按 skill 硬性规则征得用户同意
 - `search_repos` 会对每个结果仓库做**版本匹配校验**（读 README/csproj 提取 TShock/Terraria 版本线索），返回 match / mismatch / unknown，避免参考错误版本的代码
 - `search_code` 需要 `GITHUB_TOKEN` 环境变量；`search_repos` / `read_remote_file` 无 token 也能用（有速率限制）
-- `search_plugin_library` 读取插件库仓库递归树 + 各插件 README（自动识别 `src/<插件>` 或顶层布局；有 `GITHUB_TOKEN` 全扫、无 token 限 50 个目录），目录名或 README 命中关键词即入选；复用 `_probe_version`/`_match_version` 对每个入选插件做版本匹配校验。未设 `GITHUB_TOKEN` 时可用（匿名限速 60 次/小时）
+- `search_plugin_library` 读取插件库仓库递归树 + 各插件 README（自动识别 `src/<插件>` 或顶层布局；有 `GITHUB_TOKEN` 全扫、无 token 限 50 个目录），目录名或 README 命中关键词即入选，每个结果带 `match_context`（README 命中行或功能描述）便于判断语义相关性；复用 `_probe_version`/`_match_version` 对每个入选插件做版本匹配校验。未设 `GITHUB_TOKEN` 时可用（匿名限速 60 次/小时）
 - 错误码速查表 / 加载特征表 / TFM 映射分别与 `references/10-排错手册.md`、`references/09-编译部署加载验证.md`、`references/02-版本解析与兼容性.md` 保持一致

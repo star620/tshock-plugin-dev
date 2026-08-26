@@ -63,6 +63,7 @@ class SearchPluginLibraryTest(unittest.TestCase):
         self.assertIn("CheckIn", names)      # README 含关键词"签到"
         self.assertNotIn("SpamKiller", names)
         self.assertEqual(result["stars"], 100)
+        self.assertIn("签到", result["plugins"][0]["match_context"])  # 命中上下文取自 README 命中行
 
     @mock.patch("tools.github_access.requests.get")
     @mock.patch("tools.github_access._get")
@@ -110,6 +111,7 @@ class SearchPluginLibraryTest(unittest.TestCase):
         names = [p["name"] for p in result.get("plugins", [])]
         self.assertIn("SignInSign", names)   # src/ 布局下应只显示插件名，且命中 README
         self.assertNotIn("WorldEdit", names)
+        self.assertIn("签到", result["plugins"][0]["match_context"])
 
     @mock.patch("tools.github_access._get")
     def test_no_keyword_returns_empty(self, mock_get):

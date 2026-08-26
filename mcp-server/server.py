@@ -101,7 +101,8 @@ def search_plugin_library(query: str, repo: str = "UnrealMultiple/TShockPlugin",
         target_tshock: 目标 TShock 版本（可选，版本匹配校验）
         target_terraria: 目标 Terraria 版本（可选）
 
-    返回 JSON：repo/stars/plugins[{name/description/version_hint/version_match}]。
+    返回 JSON：repo/stars/plugins[{name/description/match_context/version_hint/version_match}]。
+    match_context 为命中依据，供判断语义是否真相关。
     """
     import json
 

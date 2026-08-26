@@ -269,10 +269,13 @@ def search_plugin_library(query: str, repo: str = "UnrealMultiple/TShockPlugin",
             if not (dirname_hit or readme_hit):
                 continue
             desc = _readme_summary(text) or d.split("/")[-1]
+            # 命中上下文：README 命中取命中行，仅目录名命中取功能描述行，帮 AI 判断语义是否真相关
+            ctx = _match_context_line(text, tokens) or desc
             probe = _probe_version(repo, subdir=d)
             plugins.append({
                 "name": d.split("/")[-1],  # src/ 布局下去掉 src/ 前缀，仅显示插件名
                 "description": desc[:120],
+                "match_context": ctx[:80],
                 "version_hint": probe["version_hint"],
                 "version_match": _match_version(probe["version_hint"], target_tshock, target_terraria),
             })

@@ -197,7 +197,8 @@ def search_plugin_library(query: str, repo: str = "UnrealMultiple/TShockPlugin",
         target_tshock: 目标 TShock 版本（如 6.1.0），版本匹配校验
         target_terraria: 目标 Terraria 版本（如 1.4.5.6）
 
-    返回 JSON：repo/stars/plugins[{name/description/version_hint/version_match}]。
+    返回 JSON：repo/stars/plugins[{name/description/match_context/version_hint/version_match}]。
+    match_context 为命中依据（README 命中行或功能描述），供判断语义是否真相关。
     version_match: match（可参考）/ mismatch（需升级改造）/ unknown（自行核对）。
     """
     if not query:
@@ -233,10 +234,13 @@ def search_plugin_library(query: str, repo: str = "UnrealMultiple/TShockPlugin",
             if not (dirname_hit or readme_hit):
                 continue
             desc = _readme_summary(text) or d.split("/")[-1]
+            # 命中上下文：README 命中取命中行，仅目录名命中取功能描述行，帮 AI 判断语义是否真相关
+            ctx = _match_context_line(text, tokens) or desc
             probe = _probe_version(repo, subdir=d)
             plugins.append({
                 "name": d.split("/")[-1],  # src/ 布局下去掉 src/ 前缀，仅显示插件名
                 "description": desc[:120],
+                "match_context": ctx[:80],
                 "version_hint": probe["version_hint"],
                 "version_match": _match_version(probe["version_hint"], target_tshock, target_terraria),
             })
@@ -259,6 +263,15 @@ def _readme_summary(text: str) -> str:
         if not line or line.startswith("!"):
             continue
         return line
+    return ""
+
+
+def _match_context_line(text: str, tokens: list) -> str:
+    """返回 README 中首个命中关键词的行（截断 80 字符）；无命中返回空串。"""
+    for line in text.splitlines():
+        low = line.lower()
+        if any(t in low for t in tokens):
+            return line.strip()[:80]
     return ""
 
 
