@@ -1,6 +1,6 @@
 ---
 name: tshock-plugin-dev
-description: TShock 插件全流程开发：需求采集、版本动态解析、参考源码获取、分层TDD编码、代码审查、编译、部署与服务器加载验证。当用户要求开发或修改 Terraria TShock 插件（Terraria 1.4.5+ / TShock 5.2+）时调用。
+description: TShock 插件全流程开发：需求采集、版本动态解析、参考源码获取、分层TDD编码、代码审查、编译、部署与服务器加载验证。当用户要求开发或修改 Terraria TShock 插件（Terraria 1.4.5+ / TShock 6.0+）时调用。
 ---
 
 # TShock 插件开发（tshock-plugin-dev）
