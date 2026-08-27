@@ -3,7 +3,7 @@
 # 依赖 mcp>=2.0：mcp 2.x 中 FastMCP 已改名为 MCPServer。
 from mcp.server.mcpserver import MCPServer
 
-from tools import (build_check, fetch_tshock_source, github_access,
+from tools import (build_check, fetch_tshock_source, git_manage, github_access,
                    load_log_check, project_util, source_fetch, version_resolver)
 
 server = MCPServer("tshock-plugin-dev")
@@ -220,6 +220,55 @@ def find_test_server(search_root: str = "") -> str:
     import json
 
     return json.dumps(project_util.find_test_server(search_root), ensure_ascii=False)
+
+
+# ---------- 扩展工具：git 管理（Phase 0/3/9） ----------
+
+
+@server.tool()
+def git_status(project_dir: str) -> str:
+    """检测目录的 git 状态（Phase 3 脚手架，判断是否需 init/复用）。
+
+    参数：
+        project_dir: 项目目录绝对路径
+
+    返回 JSON：is_git_repo/remote_url/branch/dirty/untracked_files/git_available。
+    """
+    import json
+
+    return json.dumps(git_manage.git_status(project_dir), ensure_ascii=False)
+
+
+@server.tool()
+def git_commit(project_dir: str, message: str, init_if_needed: bool = False) -> str:
+    """提交项目改动；目录未初始化时可自动 git init + 写 .gitignore（Phase 3/9）。
+
+    参数：
+        project_dir: 项目目录绝对路径
+        message: 提交信息（如 "chore: 项目脚手架初始化"）
+        init_if_needed: 未 init 时是否自动初始化（Phase 3 用 true）
+
+    返回 JSON：action(init/commit/skip)/commit_hash/changed_files/message。
+    """
+    import json
+
+    return json.dumps(git_manage.git_commit(project_dir, message, init_if_needed), ensure_ascii=False)
+
+
+@server.tool()
+def git_push(project_dir: str, repo_url: str = "", visibility: str = "private") -> str:
+    """推送本地提交到远程；检测目标仓库 CI，默认建议 fork+PR；可自动创建私有仓库（Phase 9）。
+
+    参数：
+        project_dir: 项目目录绝对路径
+        repo_url: 目标远程 URL；留空且无 origin 时按项目名创建私有仓库
+        visibility: 创建新仓库时生效（private/public，默认 private）
+
+    返回 JSON：pushed/repo_url/branch/ci_detected/ci_files/recommended_flow/notes。
+    """
+    import json
+
+    return json.dumps(git_manage.git_push(project_dir, repo_url, visibility), ensure_ascii=False)
 
 
 if __name__ == "__main__":
