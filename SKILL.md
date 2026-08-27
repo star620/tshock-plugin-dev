@@ -63,6 +63,7 @@ description: TShock 插件全流程开发：需求采集、版本动态解析、
 - csproj（TFM 与 TShock 包版本由 Phase 1 解析结果确定）
 - 分类封装的项目结构：命令/配置/缓存/工具/业务逻辑各归其类
 - 解决方案 sln、测试项目（若存在可测逻辑）
+- **git 初始化**（Phase 0 设 `git_required=true` 时）：MCP 可用时调 `git_status` 检测 → 无 `.git/` 则 `git_commit(project_dir, "chore: 项目脚手架初始化", init_if_needed=true)`（自动 init + 写 .gitignore + 首次提交）；已有 `.git/` 则复用不覆盖。详见 `references/12-git管理.md`
 
 ### Phase 4 分层 TDD 实现
 
@@ -111,6 +112,7 @@ description: TShock 插件全流程开发：需求采集、版本动态解析、
 ### Phase 9 交付
 
 - 输出：插件 DLL、README（命令表/权限表/配置说明）、单测报告、审查结论、本次使用的版本四元组
+- **git 收尾**（Phase 0 设 `git_required=true` 时）：MCP 可用时调 `git_commit` 做最终提交（无变化 skip）→ `git_push` 推送（`repo_url`、`visibility` 来自 Phase 0）；目标仓库检测到 CI 时默认走 fork+PR 流程（见 `references/12-git管理.md`），用户坚持直接推上游须征得同意并告知会触发构建+Release。向用户简报 commit hash / 远程 URL / 分支 / CI 情况
 - 明确告知用户：剩余功能测试由用户自行完成
 
 ## 硬性规则

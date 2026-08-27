@@ -31,7 +31,7 @@ git status
 **常见错误**：
 | 现象 | 原因 | 解决 |
 |---|---|---|
-| `403 denied to <user>` | 凭据/token 权限不足 | 生成带 repo 权限的 PAT，配到 Windows 凭据管理器或 GIT_TOKEN/GITHUB_TOKEN |
+| `403 denied to <user>` | 凭据/token 权限不足 | 生成带 repo 权限的 PAT，配到 Windows 凭据管理器或 GITHUB_TOKEN/GH_TOKEN |
 | `Author identity unknown` | 未配置 user.name/email | `git config --global user.name "名字"`、`git config --global user.email "邮箱"` |
 | 路径含中文报错 | 编码/引号问题 | 用绝对路径并加引号，避免 `cd` 拼接 |
 | `LF will be replaced by CRLF` | 行尾符警告（非错误） | 可忽略；或配置 `core.autocrlf` |

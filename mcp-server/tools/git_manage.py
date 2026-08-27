@@ -343,7 +343,7 @@ def git_push(project_dir: str, repo_url: str = "", visibility: str = "private") 
         rc, _, err = _run_git(project_dir, "push", "-u", "origin", branch)
         if rc != 0:
             hint = ("推送失败。若是 403/认证错误：生成 GitHub Personal Access Token（需 repo 权限），"
-                    "设置 GIT_TOKEN/GITHUB_TOKEN 环境变量，或用 git config 配置凭据后重试。")
+                    "设置 GITHUB_TOKEN/GH_TOKEN 环境变量，或用 git config 配置凭据后重试。")
             return _err(f"git push 失败：{err}", hint, "")
 
         return {

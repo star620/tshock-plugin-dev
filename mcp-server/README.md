@@ -37,6 +37,16 @@
 | `check_csproj` | 检查 csproj 的 TFM 与 TShock 包版本是否正确 |
 | `find_test_server` | 探测本地测试服务器目录 |
 
+### git 管理（Phase 0/3/9）
+
+| 工具 | 作用 |
+|---|---|
+| `git_status` | 检测目录 git 状态（是否仓库/远程/分支/脏），判断 init 还是复用 |
+| `git_commit` | git init（可选）+ 写 .gitignore + 提交；无变化自动 skip |
+| `git_push` | 推送 + 检测目标仓库 CI（默认推荐 fork+PR）+ 按需创建私有仓库 |
+
+`git_push` 检测到目标仓库 `.github/workflows/` 含构建工作流（如 UnrealMultiple/TShockPlugin、Zykor-Club/TShockServerPlugin）时，默认返回 `recommended_flow=fork_pr` 并建议 fork→分支→PR，避免直接推 master/main 触发自动构建 + Release；用户坚持直接推上游须先征得同意。创建新仓库默认 private。
+
 ## 安装
 
 ```bash
