@@ -64,5 +64,41 @@ class TestGitStatus(unittest.TestCase):
         self.assertEqual(result["error"], "目录不存在：nope".replace("nope", os.path.join(self.tmp, "nope")))
 
 
+class TestGitCommit(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="gitcommit_")
+        self.dir_ = os.path.join(self.tmp, "proj")
+        os.makedirs(self.dir_, exist_ok=True)
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_commit_init_if_needed(self):
+        if GIT == "git":
+            self.skipTest("本机无 git，跳过仓库用例")
+        result = git_manage.git_commit(self.dir_, "chore: 项目脚手架初始化", init_if_needed=True)
+        self.assertEqual(result["action"], "init")
+        self.assertTrue(os.path.isdir(os.path.join(self.dir_, ".git")))
+        self.assertTrue(os.path.isfile(os.path.join(self.dir_, ".gitignore")))
+
+    def test_commit_no_changes_skip(self):
+        if GIT == "git":
+            self.skipTest("本机无 git，跳过仓库用例")
+        git_manage.git_commit(self.dir_, "chore: init", init_if_needed=True)
+        result = git_manage.git_commit(self.dir_, "chore: again")
+        self.assertEqual(result["action"], "skip")
+
+    def test_commit_requires_init(self):
+        if GIT == "git":
+            self.skipTest("本机无 git，跳过仓库用例")
+        result = git_manage.git_commit(self.dir_, "msg", init_if_needed=False)
+        self.assertIn("error", result)
+
+    def test_commit_missing_dir(self):
+        result = git_manage.git_commit(os.path.join(self.tmp, "nope"), "msg")
+        self.assertIn("error", result)
+
+
 if __name__ == "__main__":
     unittest.main()
