@@ -2,7 +2,7 @@
 
 为 [tshock-plugin-dev](../SKILL.md) skill 提供高频操作的自动化工具。AI 在对应阶段直接调用工具，减少手动命令与猜错；**未安装时 skill 流程照常工作（优雅降级）**。
 
-## 工具清单（13 个）
+## 工具清单（16 个）
 
 ### 核心工具
 
@@ -62,7 +62,7 @@ pip install -r requirements.txt
 
 > `command` 换成你本机 `python` 的实际路径（`where python` 查看）；`args` 指向本仓库 `mcp-server/server.py` 的绝对路径。
 
-3. 保存后确认 server 状态为「已连接」，工具列表出现 13 个工具即成功。
+3. 保存后确认 server 状态为「已连接」，工具列表出现 16 个工具即成功。
 
 > 若使用 `search_code`，还需给 MCP server 进程设置 `GITHUB_TOKEN` 环境变量（代码搜索 API 强制认证）。
 
@@ -84,6 +84,9 @@ python tools/source_fetch.py release 6.1.0                            # 下载�
 python tools/source_fetch.py submodules "路径\tshock源码目录"          # 列出子模块
 python tools/project_util.py csproj "路径\MyPlugin.csproj"            # 检查 csproj
 python tools/project_util.py server                                   # 探测测试服务器
+python tools/git_manage.py status "路径\项目目录"          # 检测 git 状态
+python tools/git_manage.py commit "路径\项目目录" "chore: init" init   # init + 首次提交
+python tools/git_manage.py push "路径\项目目录" "https://github.com/owner/repo.git"  # 推送（含 CI 检测）
 ```
 
 ## 设计说明
