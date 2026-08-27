@@ -48,7 +48,7 @@ description: TShock 插件全流程开发：需求采集、版本动态解析、
 
 **MCP 降级**：MCP 可用时优先 `search_plugin_library`（插件库检索）/ `search_repos`（全站检索）/ `read_remote_file`（读单文件）/ `fetch_source` / `fetch_terrariaapi` / `fetch_release_asset`（下载源码与发布包）；不可用时按 `03-参考源码获取.md` 手动检索与下载。
 
-- **L1 本地版本化源码夹**（用户提供：TShock源码 + OTAPI + Terraria反编译）→ 存在则读取，作为 API 行为的最权威依据
+- **L1 本地版本化源码夹**（用户提供：TShock源码 + OTAPI + 可能的Terraria反编译）→ 存在则读取，作为 API 行为的最权威依据；注：OTAPI 源仓库不托管 Terraria 反编译源码，本地反编译源码多来自自反编译或 OTAPI 构建产物，非必需
 - **L2 本地插件收集仓库** → 按需求搜索相似插件源码作参考；**Phase 0 分流为「借鉴」时，下载的插件源码在此作为改造底座**
 - **L3 NuGet 包**（官方 `TShock` 包，编译引用基础，必需）
 - **L4 自动下载**（无本地源码时默认执行，先征得同意）：TShock 官方发布 zip（测试服务器）+ TShock 源码（tag）+ **TerrariaServerAPI 子模块源码**（`.gitmodules` 里找，定义 `TerrariaApi.Server` 类型如 `PacketTypes`）+ **OTAPI 源码**（版本见 TShock 发布说明）+ 社区插件库参考
