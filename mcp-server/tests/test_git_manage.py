@@ -100,5 +100,80 @@ class TestGitCommit(unittest.TestCase):
         self.assertIn("error", result)
 
 
+class TestCiDetect(unittest.TestCase):
+    def test_detect_ci_with_build_yml(self):
+        tmp = tempfile.mkdtemp(prefix="gicit_")
+        try:
+            if GIT == "git":
+                self.skipTest("本机无 git，跳过仓库用例")
+            repo = os.path.join(tmp, "r")
+            os.makedirs(os.path.join(repo, ".github", "workflows"), exist_ok=True)
+            _git(repo, "init")
+            with open(os.path.join(repo, ".github", "workflows", "build.yml"), "w", encoding="utf-8") as f:
+                f.write("name: build\n")
+            result = git_manage._detect_ci_local(repo)
+            self.assertTrue(result["ci_detected"])
+            self.assertIn("build.yml", result["ci_files"])
+        finally:
+            import shutil
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_detect_ci_no_workflows(self):
+        tmp = tempfile.mkdtemp(prefix="gicit_")
+        try:
+            if GIT == "git":
+                self.skipTest("本机无 git，跳过仓库用例")
+            repo = os.path.join(tmp, "r")
+            os.makedirs(repo, exist_ok=True)
+            _git(repo, "init")
+            result = git_manage._detect_ci_local(repo)
+            self.assertFalse(result["ci_detected"])
+        finally:
+            import shutil
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_detect_ci_remote_api(self):
+        with mock.patch("git_manage.requests.get") as mock_get:
+            mock_resp = mock.MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.json.return_value = [
+                {"name": "build.yml", "type": "file"},
+                {"name": "release.yml", "type": "file"},
+            ]
+            mock_get.return_value = mock_resp
+            result = git_manage._detect_ci_remote("owner/repo")
+            self.assertTrue(result["ci_detected"])
+            self.assertIn("build.yml", result["ci_files"])
+
+    def test_push_detects_ci_recommends_fork_pr(self):
+        tmp = tempfile.mkdtemp(prefix="gipush_")
+        try:
+            if GIT == "git":
+                self.skipTest("本机无 git，跳过仓库用例")
+            repo = os.path.join(tmp, "r")
+            os.makedirs(os.path.join(repo, ".github", "workflows"), exist_ok=True)
+            _git(repo, "init")
+            _git(repo, "config", "user.name", "Test")
+            _git(repo, "config", "user.email", "t@t.t")
+            with open(os.path.join(repo, ".github", "workflows", "build.yml"), "w", encoding="utf-8") as f:
+                f.write("name: build\n")
+            with open(os.path.join(repo, "a.txt"), "w", encoding="utf-8") as f:
+                f.write("x")
+            _git(repo, "add", ".")
+            _git(repo, "commit", "-m", "init")
+            with mock.patch("git_manage.requests.get") as mock_get:
+                mock_resp = mock.MagicMock()
+                mock_resp.status_code = 200
+                mock_resp.json.return_value = [{"name": "build.yml", "type": "file"}]
+                mock_get.return_value = mock_resp
+                result = git_manage.git_push(repo, repo_url="https://github.com/owner/repo.git")
+            self.assertTrue(result["ci_detected"])
+            self.assertEqual(result["recommended_flow"], "fork_pr")
+            self.assertIn("fork", result["notes"].lower())
+        finally:
+            import shutil
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
 if __name__ == "__main__":
     unittest.main()

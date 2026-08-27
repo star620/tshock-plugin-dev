@@ -208,3 +208,178 @@ def git_commit(project_dir: str, message: str, init_if_needed: bool = False) -> 
         return _err(str(e), "安装 Git 或设置 GIT_EXECUTABLE 后重试", "")
     except subprocess.TimeoutExpired:
         return _err("git 命令超时", "检查 git 是否卡住（如等待凭据输入）", "")
+
+
+def _detect_ci_local(project_dir: str) -> dict:
+    """探测本地仓库 .github/workflows/ 下的工作流文件。返回 ci_detected/ci_files。"""
+    wf_dir = os.path.join(project_dir, ".github", "workflows")
+    if not os.path.isdir(wf_dir):
+        return {"ci_detected": False, "ci_files": []}
+    files = sorted(f for f in os.listdir(wf_dir)
+                   if f.endswith((".yml", ".yaml")) and os.path.isfile(os.path.join(wf_dir, f)))
+    return {"ci_detected": bool(files), "ci_files": files}
+
+
+def _detect_ci_remote(repo_full_name: str) -> dict:
+    """用 GitHub API 探测远程仓库 .github/workflows/ 下的工作流（本地未 clone 时）。"""
+    try:
+        url = f"{API}/repos/{repo_full_name}/contents/.github/workflows"
+        resp = requests.get(url, headers=HEADERS, timeout=TIMEOUT)
+        if resp.status_code == 404:
+            return {"ci_detected": False, "ci_files": []}
+        resp.raise_for_status()
+        files = [i["name"] for i in resp.json()
+                 if i.get("type") == "file" and i["name"].endswith((".yml", ".yaml"))]
+        return {"ci_detected": bool(files), "ci_files": files}
+    except requests.RequestException as e:
+        return {"ci_detected": False, "ci_files": [],
+                "hint": f"CI 检测失败（{e}），按无 CI 处理，但建议人工确认目标仓库是否配置了构建工作流。"}
+
+
+def _create_private_repo(repo_name: str) -> dict:
+    """用 GitHub API 创建私有仓库。返回 (ok, repo_url, err_hint)。"""
+    if not TOKEN:
+        return False, "", "缺少 GITHUB_TOKEN/GH_TOKEN 环境变量，无法自动创建远程仓库。"
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+", repo_name):
+        return False, "", f"仓库名不合法：{repo_name}（仅允许字母数字 . _ -）"
+    try:
+        resp = requests.post(
+            f"{API}/user/repos",
+            headers=HEADERS,
+            json={"name": repo_name, "private": True, "auto_init": False},
+            timeout=TIMEOUT,
+        )
+        if resp.status_code in (200, 201):
+            return True, f"https://github.com/{resp.json().get('full_name')}.git", ""
+        body = resp.json().get("message", resp.text)
+        return False, "", f"创建仓库失败（HTTP {resp.status_code}）：{body}"
+    except requests.RequestException as e:
+        return False, "", f"创建仓库请求失败：{e}"
+
+
+def git_push(project_dir: str, repo_url: str = "", visibility: str = "private") -> dict:
+    """推送本地提交到远程，并检测目标仓库是否配置 CI（Phase 9）。
+
+    参数：
+        project_dir: 项目目录绝对路径
+        repo_url: 目标远程仓库 URL（可带 .git 后缀）；留空时若本地无 origin 则按项目名创建私有仓库
+        visibility: 仅创建新仓库时生效（private/public，默认 private）
+
+    返回 JSON：pushed/repo_url/branch/ci_detected/ci_files/recommended_flow/notes。
+    """
+    if not project_dir:
+        return _err("缺少参数 project_dir", "用法：git_push(project_dir, repo_url, visibility)", "")
+    if not os.path.isdir(project_dir):
+        return _err(f"目录不存在：{project_dir}", "确认项目目录路径正确", "")
+    if visibility not in ("private", "public"):
+        return _err("visibility 仅支持 private/public", "用法：git_push(project_dir, repo_url, visibility)", "")
+    if not os.path.isdir(os.path.join(project_dir, ".git")):
+        return _err(
+            "目录不是 git 仓库，且尚未初始化",
+            "Phase 3 需先 git_commit(init_if_needed=true)；Phase 9 前应已完成至少一次提交",
+            "",
+        )
+
+    try:
+        # 1) 确定远程 URL：优先 repo_url 参数；否则读本地 origin；否则创建私有仓库
+        remote_url = repo_url
+        created_repo = False
+        if not remote_url:
+            rc, out, _ = _run_git(project_dir, "remote", "get-url", "origin")
+            if rc == 0 and out:
+                remote_url = out
+        if not remote_url:
+            repo_name = os.path.basename(os.path.abspath(project_dir))
+            ok, new_url, hint = _create_private_repo(repo_name)
+            if not ok:
+                return _err(
+                    "本地无远程仓库且自动创建失败",
+                    hint,
+                    "可手动在 GitHub 建仓后：git remote add origin <url> && git push -u origin <branch>",
+                )
+            remote_url = new_url
+            created_repo = True
+
+        # 2) 解析 owner/repo 用于 CI 检测
+        m = re.search(r"github\.com[/:]([^/\s]+)/([^/\s#]+?)(?:\.git)?$", remote_url)
+        repo_full = f"{m.group(1)}/{m.group(2)}" if m else ""
+        ci = {"ci_detected": False, "ci_files": []}
+        if repo_full:
+            # 本地已有 .github/workflows 则优先读本地；否则 API 探测
+            local_ci = _detect_ci_local(project_dir)
+            ci = local_ci if local_ci["ci_detected"] else _detect_ci_remote(repo_full)
+
+        # 3) CI 检测到 → 默认推荐 fork+PR，不直接推上游
+        if ci["ci_detected"]:
+            return {
+                "pushed": False,
+                "repo_url": remote_url,
+                "branch": "",
+                "ci_detected": True,
+                "ci_files": ci["ci_files"],
+                "recommended_flow": "fork_pr",
+                "notes": (
+                    f"目标仓库 {repo_full} 配置了构建工作流 {ci['ci_files']}。"
+                    "直接 push 到 master/main 会触发自动构建并可能自动发 Release（如 UnrealMultiple/TShockPlugin、"
+                    "Zykor-Club/TShockServerPlugin）。默认推荐：fork 上游 → 本地分支开发 → push 到 fork → 提 PR。"
+                    "若你坚持直接推上游，请明确确认，我会先核对仓库结构要求（src/<插件>/、manifest.json、"
+                    "不得提交 DLL）后再推送。"
+                ),
+            }
+
+        # 4) 无 CI → 直接推送
+        rc, out, _ = _run_git(project_dir, "branch", "--show-current")
+        branch = out if rc == 0 else ""
+        if not branch:
+            rc, out, _ = _run_git(project_dir, "rev-parse", "--abbrev-ref", "HEAD")
+            branch = out if rc == 0 else "HEAD"
+
+        if created_repo or not _remote_exists(project_dir):
+            rc, _, err = _run_git(project_dir, "remote", "add", "origin", remote_url)
+            if rc != 0:
+                # 已存在 origin 但 URL 不同则更新
+                _run_git(project_dir, "remote", "set-url", "origin", remote_url)
+
+        rc, _, err = _run_git(project_dir, "push", "-u", "origin", branch)
+        if rc != 0:
+            hint = ("推送失败。若是 403/认证错误：生成 GitHub Personal Access Token（需 repo 权限），"
+                    "设置 GIT_TOKEN/GITHUB_TOKEN 环境变量，或用 git config 配置凭据后重试。")
+            return _err(f"git push 失败：{err}", hint, "")
+
+        return {
+            "pushed": True,
+            "repo_url": remote_url,
+            "branch": branch,
+            "ci_detected": False,
+            "ci_files": [],
+            "recommended_flow": "direct_push",
+            "notes": f"已推送到 {remote_url}（分支 {branch}）。" + ("已自动创建私有仓库。" if created_repo else ""),
+        }
+    except RuntimeError as e:
+        return _err(str(e), "安装 Git 或设置 GIT_EXECUTABLE 后重试", "")
+    except subprocess.TimeoutExpired:
+        return _err("git 命令超时", "检查 git 是否卡住（如等待凭据输入）", "")
+
+
+def _remote_exists(project_dir: str) -> bool:
+    """判断本地是否已配置 origin 远程。"""
+    try:
+        rc, _, _ = _run_git(project_dir, "remote")
+        return rc == 0
+    except RuntimeError:
+        return False
+
+
+if __name__ == "__main__":
+    # 调试：python git_manage.py status <目录> | commit <目录> <消息> [init]
+    mode = sys.argv[1] if len(sys.argv) > 1 else "status"
+    d = sys.argv[2] if len(sys.argv) > 2 else ""
+    if mode == "status":
+        print(json.dumps(git_status(d), ensure_ascii=False, indent=2))
+    elif mode == "commit":
+        msg = sys.argv[3] if len(sys.argv) > 3 else "update"
+        init = len(sys.argv) > 4 and sys.argv[4] == "init"
+        print(json.dumps(git_commit(d, msg, init), ensure_ascii=False, indent=2))
+    elif mode == "push":
+        url = sys.argv[3] if len(sys.argv) > 3 else ""
+        print(json.dumps(git_push(d, url), ensure_ascii=False, indent=2))
