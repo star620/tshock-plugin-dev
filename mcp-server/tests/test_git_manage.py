@@ -69,8 +69,17 @@ class TestGitCommit(unittest.TestCase):
         self.tmp = tempfile.mkdtemp(prefix="gitcommit_")
         self.dir_ = os.path.join(self.tmp, "proj")
         os.makedirs(self.dir_, exist_ok=True)
+        # 注入 git 身份，避免依赖全局 user.name/user.email（CI runner 未配置时也能提交）
+        self._env = mock.patch.dict(os.environ, {
+            "GIT_AUTHOR_NAME": "Test",
+            "GIT_AUTHOR_EMAIL": "t@t.t",
+            "GIT_COMMITTER_NAME": "Test",
+            "GIT_COMMITTER_EMAIL": "t@t.t",
+        })
+        self._env.start()
 
     def tearDown(self):
+        self._env.stop()
         import shutil
         shutil.rmtree(self.tmp, ignore_errors=True)
 
