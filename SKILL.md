@@ -26,6 +26,7 @@ description: TShock 插件全流程开发：需求采集、版本动态解析、
 1. **目标服务端版本**：问用户「TShock 版本号 / 提供服务器文件夹 / 用最新 / 不清楚」——只有用户明确无法回答时才进入 Phase 1 探测，探测结果回显确认
 2. **目标客户端版本**：问用户 Terraria 版本（不确定可选「与服务器一致」或「最新」）
 3. **其他参考源**：主动问「是否有其他可参考的 GitHub 仓库或本地源码？」
+4. **git 管理**：问「是否需要 git 管理？远程仓库 URL（可留空）？私有/公开？」——不需要则全程跳过 git 流程（Phase 3/9 均跳过）；需要则记录 `git_required=true`、`repo_url`、`visibility`（默认 private）。详见 `references/12-git管理.md`。
 
 **版本门禁（硬性）**：若用户目标的 Terraria 版本没有对应 TShock NuGet 包（TShock 尚未跟进该版本），**必须明确告知用户无法为该版本编写插件**，除非用户明确说明本地有「已跟进该 Terraria 最新版本的 TShock 源码」。目标为 1.4.5.7/1.4.5.8 等新版本时，先提示实验性风险（OTAPI/TShock 可能未完整适配）。详见 `references/02-版本解析与兼容性.md`。
 
@@ -138,6 +139,7 @@ description: TShock 插件全流程开发：需求采集、版本动态解析、
 | `references/09-编译部署加载验证.md` | 编译/部署/重启/日志验证流程 |
 | `references/10-排错手册.md` | 常见错误与解决 |
 | `references/11-终审代码审查.md` | 交付前终审清单（方法名/缺陷/多余字段/整体质量） |
+| `references/12-git管理.md` | git 初始化/提交/推送、CI 仓库 fork+PR 流程、.gitignore 模板 |
 | `mcp-server/README.md` | 配套 MCP 工具（版本解析/编译检查/日志检查/源码获取）与注册方式 |
 
 ## 模板使用说明
