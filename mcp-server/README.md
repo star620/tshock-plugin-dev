@@ -2,7 +2,7 @@
 
 为 [tshock-plugin-dev](../SKILL.md) skill 提供高频操作的自动化工具。AI 在对应阶段直接调用工具，减少手动命令与猜错；**未安装时 skill 流程照常工作（优雅降级）**。
 
-## 工具清单（16 个）
+## 工具清单（17 个）
 
 ### 核心工具
 
@@ -47,6 +47,14 @@
 
 `git_push` 检测到目标仓库 `.github/workflows/` 含构建工作流（如 UnrealMultiple/TShockPlugin、Zykor-Club/TShockServerPlugin）时，默认返回 `recommended_flow=fork_pr` 并建议 fork→分支→PR，避免直接推 master/main 触发自动构建 + Release；用户坚持直接推上游须先征得同意。创建新仓库默认 private。
 
+### GitHub 评论读取（gh CLI 封装，独立可用）
+
+| 工具 | 作用 |
+|---|---|
+| `read_github_comments` | 读取 issue/PR 的评论：描述 / 对话 / Review 总结 / 代码行评论（含 path/line）。支持 URL 或 repo+number；`comment_type` 可筛选 all/description/conversation/review/code |
+
+封装本机 `gh` CLI（需先 `gh auth login` 或用 `GH_TOKEN`）。**独立可用**：即使没有插件开发需求，也可直接调用做评论审核、查看、分析。
+
 ## 安装
 
 ```bash
@@ -72,7 +80,7 @@ pip install -r requirements.txt
 
 > `command` 换成你本机 `python` 的实际路径（`where python` 查看）；`args` 指向本仓库 `mcp-server/server.py` 的绝对路径。
 
-3. 保存后确认 server 状态为「已连接」，工具列表出现 16 个工具即成功。
+3. 保存后确认 server 状态为「已连接」，工具列表出现 17 个工具即成功。
 
 > 若使用 `search_code`，还需给 MCP server 进程设置 `GITHUB_TOKEN` 环境变量（代码搜索 API 强制认证）。
 
@@ -97,6 +105,8 @@ python tools/project_util.py server                                   # 探测�
 python tools/git_manage.py status "路径\项目目录"          # 检测 git 状态
 python tools/git_manage.py commit "路径\项目目录" "chore: init" init   # init + 首次提交
 python tools/git_manage.py push "路径\项目目录" "https://github.com/owner/repo.git"  # 推送（含 CI 检测）
+python tools/gh_comments.py "https://github.com/owner/repo/pull/5"   # 读取评论（URL）
+python tools/gh_comments.py "owner/repo" 5                            # 读取评论（repo+编号）
 ```
 
 ## 设计说明

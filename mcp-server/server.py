@@ -1,10 +1,11 @@
-# MCP server 入口：注册 16 个工具，供 AI 在 skill 各阶段调用。
+# MCP server 入口：注册 17 个工具，供 AI 在 skill 各阶段调用。
 # 运行：python server.py（默认 stdio 传输，供 TRAE/其他 MCP 客户端本地注册）
 # 依赖 mcp>=2.0：mcp 2.x 中 FastMCP 已改名为 MCPServer。
 from mcp.server.mcpserver import MCPServer
 
-from tools import (build_check, fetch_tshock_source, git_manage, github_access,
-                   load_log_check, project_util, source_fetch, version_resolver)
+from tools import (build_check, fetch_tshock_source, gh_comments, git_manage,
+                   github_access, load_log_check, project_util, source_fetch,
+                   version_resolver)
 
 server = MCPServer("tshock-plugin-dev")
 
@@ -269,6 +270,30 @@ def git_push(project_dir: str, repo_url: str = "", visibility: str = "private") 
     import json
 
     return json.dumps(git_manage.git_push(project_dir, repo_url, visibility), ensure_ascii=False)
+
+
+# ---------- 扩展工具：GitHub 评论读取（gh CLI 封装，独立可用） ----------
+
+
+@server.tool()
+def read_github_comments(repo: str = "", number: str = "", url: str = "",
+                         comment_type: str = "all") -> str:
+    """读取 GitHub issue/PR 的评论（对话 / Review 总结 / 代码行评论），封装 gh CLI。
+
+    独立可用：即使没有插件开发需求，也可直接调用做评论审核、查看、分析。
+
+    参数：
+        repo: 仓库 full_name（如 owner/repo）；与 number 配对，与 url 二选一
+        number: issue/PR 编号（正整数）
+        url: 评论页 URL（如 https://github.com/owner/repo/pull/5）；优先于 repo+number
+        comment_type: all/description/conversation/review/code（默认 all 全部）
+
+    返回 JSON：repo/number/kind/total/comments[{id/type/author/created_at/body/path/line/state}]。
+    """
+    import json
+
+    return json.dumps(gh_comments.read_github_comments(repo, number, url, comment_type),
+                      ensure_ascii=False)
 
 
 if __name__ == "__main__":

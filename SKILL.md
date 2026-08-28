@@ -142,6 +142,7 @@ description: TShock 插件全流程开发：需求采集、版本动态解析、
 | `references/10-排错手册.md` | 常见错误与解决 |
 | `references/11-终审代码审查.md` | 交付前终审清单（方法名/缺陷/多余字段/整体质量） |
 | `references/12-git管理.md` | git 初始化/提交/推送、CI 仓库 fork+PR 流程、.gitignore 模板 |
+| `references/13-评论读取.md` | GitHub 评论读取（gh 封装）：issue/PR 讨论、Review 总结、代码行评论 |
 | `mcp-server/README.md` | 配套 MCP 工具（版本解析/编译检查/日志检查/源码获取）与注册方式 |
 
 ## 模板使用说明

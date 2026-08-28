@@ -11,6 +11,7 @@
 - **交付前终审**：方法名、缺陷、多余字段、整体质量四项终审，问题全部修复才可交付
 - **中文注释规范**：统一 `//` 单行注释，禁止 `/// <summary>` XML 文档注释
 - **分类封装**：命令/配置/缓存/工具/业务逻辑各归其类，每类 ≤ 400 行
+- **GitHub 评论读取**：封装 gh CLI，直接读取 issue/PR 讨论、Review 总结与代码行评论（独立可用，不限于插件开发）
 
 ## 工作流（十阶段）
 
@@ -66,7 +67,7 @@ tshock-plugin-dev/
 └── mcp-server/           # 配套 MCP 工具（可选，未安装时 skill 照常工作）
     ├── server.py             # MCP 入口（stdio）
     ├── README.md             # 安装与 TRAE 注册方式
-    └── tools/                # version_resolver / build_check / load_log_check / fetch_tshock_source
+    └── tools/                # version_resolver / build_check / load_log_check / fetch_tshock_source / git_manage / gh_comments
 ```
 
 ## 技术要求
