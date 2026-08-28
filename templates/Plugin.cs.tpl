@@ -49,7 +49,7 @@ public class Plugin : TerrariaPlugin
 
     #region 配置重载与读取
     internal static Configuration Config = new(); // 配置文件实例
-    internal static CacheData Cache => Config.DeathCache; // 缓存数据实例
+    internal static CacheData Cache => Config.DataCache; // 缓存数据实例
 
     private static void ReloadConfig(ReloadEventArgs args)
     {

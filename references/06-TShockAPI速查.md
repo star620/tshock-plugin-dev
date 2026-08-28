@@ -36,12 +36,15 @@ public class Plugin : TerrariaPlugin        // 必须继承 TerrariaPlugin
 ```csharp
 using TShockAPI;
 // 在 Initialize() 或静态构造函数中：
+// 注意：Command 构造器的 params string[] 参数全部是「命令别名」，没有帮助文本参数；
+// 帮助文本必须用对象初始化器设置，否则会被注册成多余的命令别名。
 Commands.ChatCommands.Add(new Command(
     "myplugin.admin",       // 权限名（可多个：new List<string>{"a","b"}）
     CmdHandler,             // 处理方法 void CmdHandler(CommandArgs args)
-    "mycmd",                // 命令名（玩家输入 /mycmd）
-    "help"                  // 帮助文本（可省略）
-));
+    "mycmd")                // 命令名（玩家输入 /mycmd；可追加多个别名）
+{
+    HelpText = "命令帮助文本"  // 对象初始化器设置帮助文本（/help 中显示）
+});
 ```
 
 命令处理方法：

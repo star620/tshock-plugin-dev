@@ -9,12 +9,16 @@ internal class Commands
     // 在 Plugin.Initialize() 中调用：{{插件名}}.Commands.Register();
     public static void Register()
     {
-        // 语法：TShockAPI.Commands.ChatCommands.Add(new Command(权限, 处理函数, "命令名", "帮助文本"));
+        // 语法：Commands.ChatCommands.Add(new Command(权限, 处理函数, "命令名") { HelpText = "帮助文本" });
+        // 注意：Command 构造器的 params string[] 参数全部是「命令别名」，没有帮助文本参数；
+        // 帮助文本必须用对象初始化器设置，否则会被注册成多余的命令别名。
         TShockAPI.Commands.ChatCommands.Add(new Command(
             "{{插件名}}.example",   // 权限名
             Example,                // 处理方法
-            "example",              // 命令名（玩家输入 /example）
-            "示例命令"));
+            "example")              // 命令名（玩家输入 /example）
+        {
+            HelpText = "示例命令"    // 帮助文本（对象初始化器设置，非构造器参数）
+        });
     }
     #endregion
 

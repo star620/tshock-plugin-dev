@@ -25,7 +25,7 @@ internal class Configuration
     {
         string json = JsonConvert.SerializeObject(this, Formatting.Indented);
         File.WriteAllText(ConfigPath, json);
-        DeathCache.Save(); // 顺带保存缓存数据
+        DataCache.Save(); // 顺带保存缓存数据
     }
 
     public static Configuration Read()
@@ -41,7 +41,7 @@ internal class Configuration
         {
             string json = File.ReadAllText(ConfigPath);
             var cfg = JsonConvert.DeserializeObject<Configuration>(json)!;
-            cfg.DeathCache.Load(); // 读取缓存数据
+            cfg.DataCache.Load(); // 读取缓存数据
             return cfg;
         }
         catch (JsonException ex)
@@ -53,8 +53,8 @@ internal class Configuration
     #endregion
 
     #region 缓存数据（高频变化，分离到独立文件）
-    private CacheData _deathCache = new();
+    private CacheData _dataCache = new();
     [JsonIgnore]
-    public CacheData DeathCache => _deathCache;
+    public CacheData DataCache => _dataCache;
     #endregion
 }
